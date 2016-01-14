@@ -2,6 +2,7 @@ Win32-VBScript-*
 Build
 MYMETA.*
 Makefile
+.build/
 _build/
 blib/
 *.swp
