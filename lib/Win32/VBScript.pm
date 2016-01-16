@@ -13,7 +13,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ('all' => [qw(
     compile_prog_vbs compile_prog_js
     compile_func_vbs compile_func_js
-    cscript wscript func flist
+    cscript wscript async func flist
 )]);
 our @EXPORT      = qw();
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
