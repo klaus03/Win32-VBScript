@@ -87,7 +87,7 @@ sub new {
         croak "E040: Panic -- Invalid type ('$type'), expected ('prog' or 'func')";
     }
 
-    my $file_name = 'T '.$dat_sha1.'.txt';
+    my $file_name = 'T_'.$dat_sha1.'.txt';
     my $file_full = $VBRepo.'\\'.$file_name;
 
     write_file($file_full, $file_content);
