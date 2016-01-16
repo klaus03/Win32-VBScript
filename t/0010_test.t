@@ -18,7 +18,7 @@ use_ok('Win32::VBScript', ':all');
 
 {
     my $txt = capture_merged {
-      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine("Hi VBS")} ])->cscript;
+      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS"} ])->cscript;
     };
 
     $txt =~ s{\n}''xmsg;
