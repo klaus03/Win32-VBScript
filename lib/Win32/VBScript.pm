@@ -179,8 +179,9 @@ sub func {
 
 sub flist {
     my $self  = shift;
+    my $sf = $self->{'func'};
 
-    sort keys %{$self->{'func'}};
+    sort grep { $sf->{$_} } keys %$sf;
 }
 
 1;
@@ -190,6 +191,12 @@ __END__
 =head1 NAME
 
 Win32::VBScript - Run Visual Basic programs
+
+=head1 DESCRIPTION
+
+This module allows you to invoke code fragments written in Visual
+Basic (or even JavaScript) from within a perl program.
+The Win32::OLE part has been copied from Inline::WSC.
 
 =head1 SYNOPSIS
 
@@ -201,24 +208,48 @@ Win32::VBScript - Run Visual Basic programs
     # This is the procedural interface:
     # *********************************
 
-    my $p1 = compile_js ([ qq{WScript.StdOut.WriteLine("Bonjour");} ]); cscript($p1);
-    my $p2 = compile_vbs([ qq{WScript.StdOut.WriteLine "Hello"}     ]); cscript($p2);
+    my $p1 = compile_prog_js ([ qq{WScript.StdOut.WriteLine("Bonjour");} ]); cscript($p1);
+    my $p2 = compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Hello"}     ]); cscript($p2);
 
     # This is the OO interface:
     # *************************
 
-    compile_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
-    compile_vbs([ qq{WScript.StdOut.WriteLine "Test2"}   ])->cscript;
+    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
+    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test2"}   ])->cscript;
 
     # And with vbs, of course, you can use MsgBox:
     # ********************************************
 
-    compile_vbs([ qq{MsgBox "Greetings Earthlings..."} ])->wscript;
+    compile_prog_vbs([ qq{MsgBox "Greetings Earthlings..."} ])->wscript;
 
-=head1 DESCRIPTION
+    # You can even define functions in Visual Basic...
+    # ************************************************
 
-This module allows you to invoke code fragments written in Visual
-Basic (or even JavaScript) from within a perl program.
+    my $t = compile_func_vbs([ <<'EOF' ]);
+      ' Say hello:
+      Function Hello(ByVal Name)
+        Hello = ">> " & Name & " <<"
+      End Function
+
+      ' Handy method here:
+      Function AsCurrency(ByVal Amount)
+        AsCurrency = FormatCurrency(Amount)
+      End Function
+    EOF
+
+    # ...and call the functions later in Perl:
+    # ****************************************
+
+    print 'Compiled functions are: (', join(', ', map { "'$_'" } $t->flist), ')', "\n\n";
+
+    {
+        no strict 'refs';
+
+        *{'::hi'}  = $t->func('Hello');
+        *{'::cur'} = $t->func('AsCurrency');
+    }
+
+    print hi('John'), ' gets ', cur(100000), "\n\n";
 
 =head1 AUTHOR
 
