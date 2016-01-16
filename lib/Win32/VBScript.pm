@@ -217,15 +217,15 @@ The Win32::OLE part has been copied from Inline::WSC.
     compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
     compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test2"}   ])->cscript;
 
-    # And with vbs, of course, you can use MsgBox:
-    # ********************************************
+    # And with wscript, of course, you can use MsgBox:
+    # ************************************************
 
-    compile_prog_vbs([ qq{MsgBox "Greetings Earthlings..."} ])->wscript;
+    compile_prog_vbs([ qq{MsgBox "Test3"} ])->wscript;
 
     # You can even define functions in Visual Basic...
     # ************************************************
 
-    my $t = compile_func_vbs([ <<'EOF' ]);
+    my $t1 = compile_func_vbs([ <<'EOF' ]);
       ' Say hello:
       Function Hello(ByVal Name)
         Hello = ">> " & Name & " <<"
@@ -237,19 +237,32 @@ The Win32::OLE part has been copied from Inline::WSC.
       End Function
     EOF
 
+    # ...or even JavaScript...
+    # ************************
+
+    my $t2 = compile_func_js([ <<'EOF' ]);
+      function greet(name) {
+        return "Greetings, " + name + "!";
+      } // end greet(name)
+    EOF
+
     # ...and call the functions later in Perl:
     # ****************************************
 
-    print 'Compiled functions are: (', join(', ', map { "'$_'" } $t->flist), ')', "\n\n";
+    print 'Compiled functions are: (',
+      join(', ', map { "'$_'" }
+      sort { lc($a) cmp lc($b) } $t1->flist, $t2->flist),
+      ')', "\n\n";
 
     {
         no strict 'refs';
 
-        *{'::hi'}  = $t->func('Hello');
-        *{'::cur'} = $t->func('AsCurrency');
+        *{'::hi'}  = $t1->func('Hello');
+        *{'::cur'} = $t1->func('AsCurrency');
+        *{'::grt'} = $t2->func('greet');
     }
 
-    print hi('John'), ' gets ', cur(100000), "\n\n";
+    print hi('John'), ' gets ', cur(100000), ' -> ', grt('Earthling'), "\n\n";
 
 =head1 AUTHOR
 
