@@ -87,7 +87,7 @@ sub new {
         croak "E040: Panic -- Invalid type ('$type'), expected ('prog' or 'func')";
     }
 
-    my $file_name = 'S-'.$dat_sha1.'.txt';
+    my $file_name = 'T '.$dat_sha1.'.txt';
     my $file_full = $VBRepo.'\\'.$file_name;
 
     write_file($file_full, $file_content);
@@ -132,7 +132,7 @@ sub compile_func_js {
 
 sub _run {
     my $self = shift;
-    my ($scr) = @_;
+    my ($scr, $mode) = @_;
 
     unless ($scr eq 'cscript' or $scr eq 'wscript') {
         croak "E060: Invalid script ('$scr'), expected ('cscript' or 'wscript')";
@@ -157,17 +157,32 @@ sub _run {
       $lang eq 'js'  ? 'JScript'  :
       croak "E080: Panic -- invalid language ('$lang'), expected ('vbs' or 'js')";
 
-    system qq{$scr //Nologo //E:$engine "$full"};
+    my @param = ($scr, '//Nologo', '//E:'.$engine, $full);
+
+    if ($mode eq 'a') {
+        system 1, @param; # asynchronous
+    }
+    elsif ($mode eq 's') {
+        system    @param; # sequentially
+    }
+    else {
+      croak "E082: Panic -- invalid mode ('$mode'), expected ('a' or 's')";
+    }
 }
 
 sub cscript {
     my $self = shift;
-    $self->_run('cscript');
+    $self->_run('cscript', 's'); # s = sequentially
 }
 
 sub wscript {
     my $self = shift;
-    $self->_run('wscript');
+    $self->_run('wscript', 's'); # s = sequentially
+}
+
+sub async {
+    my $self = shift;
+    $self->_run('wscript', 'a'); # a = asynchronous
 }
 
 sub func {
