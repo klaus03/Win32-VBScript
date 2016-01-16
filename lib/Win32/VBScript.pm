@@ -6,11 +6,12 @@ use warnings;
 use Carp;
 use Digest::SHA qw(sha1_hex);
 use File::Slurp;
+use Win32::OLE;
 
 require Exporter;
 our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ('all' => [qw(
-    compile_vbs compile_js cscript wscript
+    compile_vbs compile_js cscript wscript func
 )]);
 our @EXPORT      = qw();
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
@@ -20,45 +21,113 @@ my $VBRepo = $ENV{'TEMP'}.'\\Repo01';
 sub new {
     my $pkg = shift;
 
-    my ($lang, $code) = @_;
+    my ($type, $lang, $code) = @_;
 
-    unless ($lang eq 'vbs' or $lang eq 'js') {
-        croak "E010: Invalid language ('$lang'), expected ('vbs' or 'js')";
+    unless ($type eq 'prog' or $type eq 'func') {
+        croak "E010: Invalid type ('$type'), expected ('prog' or 'func')";
     }
 
     unless (-d $VBRepo) {
         mkdir $VBRepo or croak "E020: Can't mkdir '$VBRepo' because $!";
     }
 
-    my $clear = '';
+    my $dat_engine;
+    my $dat_comment;
 
-    for (@$code) {
-        $clear .= $_."\n";
+    if ($lang eq 'vbs') {
+        $dat_engine  = 'VBScript';
+        $dat_comment = q{'};
+    }
+    elsif ($lang eq 'js') {
+        $dat_engine  = 'JScript';
+        $dat_comment = q{//};
+    }
+    else {
+        croak "E030: Invalid language ('$lang'), expected ('vbs' or 'js')";
     }
 
-    my $sha1 = sha1_hex($clear);
+    my $dat_text  = ''; for (@$code) { $dat_text .= $_."\n"; }
+    my $dat_sha1  = sha1_hex($dat_text);
+    my $dat_class = "InlineWin32COM.WSC\_$dat_sha1.wsc";
 
-    my $fname = $lang.'-'.$sha1.'.'.$lang;
-    my $full = $VBRepo.'\\'.$fname;
+    my %dat_func;
 
-    unless (-f $full) {
-        write_file($full, $clear);
+    for (split m{\n}xms, $dat_text) {
+        if (m{\A \s* (?: function | sub) \s+ (\w+) (?: \z | \W)}xmsi) {
+            $dat_func{$1} = undef;
+        }
+    }
+
+    my $file_content;
+
+    if ($type eq 'prog') {
+        $file_content = $dat_comment.' -- '.$dat_engine.qq{\n\n}.$dat_text;
+    }
+    elsif ($type eq 'func') {
+        $file_content =
+          qq{<?xml version="1.0"?>\n}.
+          qq{<component>\n}.
+          qq{  <registration }.
+          qq{    description="Inline::WSC Class" }.
+          qq{    progid="$dat_class" }.
+          qq{    version="1.0">\n}.
+          qq{  </registration>\n}.
+          qq{  <public>\n}.
+          join('', map { qq{    <method name="$_" />\n} } sort { lc($a) cmp lc($b) } keys %dat_func).
+          qq{  </public>\n}.
+          qq{  <implements type="ASP" id="ASP" />\n}.
+          qq{  <script language="$dat_engine">\n}.
+          qq{    <![CDATA[\n$dat_text\n]]>\n}.
+          qq{  </script>\n}.
+          qq{</component>\n};
+    }
+    else {
+        croak "E040: Panic -- Invalid type ('$type'), expected ('prog' or 'func')";
+    }
+
+    my $file_name = 'S-'.$dat_sha1.'.txt';
+    my $file_full = $VBRepo.'\\'.$file_name;
+
+    unless (-f $file_full) {
+        write_file($file_full, $file_content);
+    }
+
+    if ($type eq 'func') {
+        my $obj = Win32::OLE->GetObject('script:'.$file_full) or croak "E050: ",
+          "Couldn't Win32::OLE->GetObject('script:$file_full')",
+          " -> ".Win32::GetLastError;
+
+        for (keys %dat_func) {
+            $dat_func{$_} = sub { $obj->$_(@_); };
+        }
     }
 
     bless {
-      'fn'   => $fname,
+      'name' => $file_name,
+      'type' => $type,
       'lang' => $lang,
+      'func' => \%dat_func,
     }, $pkg;
 }
 
-sub compile_vbs {
+sub compile_prog_vbs {
     my ($code) = @_;
-    Win32::VBScript->new('vbs', $code);
+    Win32::VBScript->new('prog', 'vbs', $code);
 }
 
-sub compile_js {
+sub compile_prog_js {
     my ($code) = @_;
-    Win32::VBScript->new('js', $code);
+    Win32::VBScript->new('prog', 'js', $code);
+}
+
+sub compile_func_vbs {
+    my ($code) = @_;
+    Win32::VBScript->new('func', 'vbs', $code);
+}
+
+sub compile_func_js {
+    my ($code) = @_;
+    Win32::VBScript->new('func', 'js', $code);
 }
 
 sub _run {
@@ -66,21 +135,21 @@ sub _run {
     my ($scr) = @_;
 
     unless ($scr eq 'cscript' or $scr eq 'wscript') {
-        croak "E030: Invalid script ('$scr'), expected ('cscript' or 'wscript')";
+        croak "E060: Invalid script ('$scr'), expected ('cscript' or 'wscript')";
     }
 
-    my $fname = $self->{'fn'};
-    my $full  = $VBRepo.'\\'.$fname;
-    my $lang  = $self->{'lang'};
+    my $fn   = $self->{'fn'};
+    my $full = $VBRepo.'\\'.$fn;
+    my $lang = $self->{'lang'};
 
     unless (-f $full) {
-        croak "E040: Panic -- can't find executable '$full'";
+        croak "E070: Panic -- can't find executable '$full'";
     }
 
     my $engine =
-      $lang eq 'vbs' ? 'VBS'     :
-      $lang eq 'js'  ? 'JScript' :
-      croak "E050: Panic -- invalid language ('$lang'), expected ('vbs' or 'js')";
+      $lang eq 'vbs' ? 'VBScript' :
+      $lang eq 'js'  ? 'JScript'  :
+      croak "E080: Panic -- invalid language ('$lang'), expected ('vbs' or 'js')";
 
     system qq{$scr //Nologo //E:$engine "$full"};
 }
@@ -93,6 +162,13 @@ sub cscript {
 sub wscript {
     my $self = shift;
     $self->_run('wscript');
+}
+
+sub func {
+    my $self  = shift;
+    my $mname = shift;
+
+    $self->{'func'}{$mname};
 }
 
 1;
