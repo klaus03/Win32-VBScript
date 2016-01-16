@@ -13,7 +13,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ('all' => [qw(
     compile_prog_vbs compile_prog_js
     compile_func_vbs compile_func_js
-    cscript wscript func
+    cscript wscript func flist
 )]);
 our @EXPORT      = qw();
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
@@ -50,7 +50,7 @@ sub new {
 
     my $dat_text  = ''; for (@$code) { $dat_text .= $_."\n"; }
     my $dat_sha1  = sha1_hex($dat_text);
-    my $dat_class = "InlineWin32COM.WSC\_$dat_sha1.wsc";
+    my $dat_class = "InlineWin32COM.WSC\\_$dat_sha1.wsc";
 
     my %dat_func;
 
@@ -70,9 +70,9 @@ sub new {
           qq{<?xml version="1.0"?>\n}.
           qq{<component>\n}.
           qq{  <registration }.
-          qq{    description="Inline::WSC Class" }.
-          qq{    progid="$dat_class" }.
-          qq{    version="1.0">\n}.
+              qq{description="Inline::WSC Class" }.
+              qq{progid="$dat_class" }.
+              qq{version="1.0">\n}.
           qq{  </registration>\n}.
           qq{  <public>\n}.
           join('', map { qq{    <method name="$_" />\n} } sort { lc($a) cmp lc($b) } keys %dat_func).
@@ -90,17 +90,15 @@ sub new {
     my $file_name = 'S-'.$dat_sha1.'.txt';
     my $file_full = $VBRepo.'\\'.$file_name;
 
-    unless (-f $file_full) {
-        write_file($file_full, $file_content);
-    }
+    write_file($file_full, $file_content);
 
     if ($type eq 'func') {
         my $obj = Win32::OLE->GetObject('script:'.$file_full) or croak "E050: ",
           "Couldn't Win32::OLE->GetObject('script:$file_full')",
           " -> ".Win32::GetLastError;
 
-        for (keys %dat_func) {
-            $dat_func{$_} = sub { $obj->$_(@_); };
+        for my $method (keys %dat_func) {
+            $dat_func{$method} = sub { $obj->$method(@_); };
         }
     }
 
@@ -177,6 +175,12 @@ sub func {
     my $mname = shift;
 
     $self->{'func'}{$mname};
+}
+
+sub flist {
+    my $self  = shift;
+
+    sort keys %{$self->{'func'}};
 }
 
 1;
