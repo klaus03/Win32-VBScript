@@ -11,7 +11,9 @@ use Win32::OLE;
 require Exporter;
 our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ('all' => [qw(
-    compile_vbs compile_js cscript wscript func
+    compile_prog_vbs compile_prog_js
+    compile_func_vbs compile_func_js
+    cscript wscript func
 )]);
 our @EXPORT      = qw();
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
@@ -138,9 +140,15 @@ sub _run {
         croak "E060: Invalid script ('$scr'), expected ('cscript' or 'wscript')";
     }
 
-    my $fn   = $self->{'fn'};
-    my $full = $VBRepo.'\\'.$fn;
+    my $name = $self->{'name'};
     my $lang = $self->{'lang'};
+    my $type = $self->{'type'};
+
+    unless ($type eq 'prog') {
+        croak "E065: Invalid type ('$type'), expected ('prog')";
+    }
+
+    my $full = $VBRepo.'\\'.$name;
 
     unless (-f $full) {
         croak "E070: Panic -- can't find executable '$full'";
