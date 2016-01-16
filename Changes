@@ -1,5 +1,11 @@
 Revision history for Win32::VBScript
 
+0.02 - 2016-01-16T21:04:33+01:00
+
+  [ENHANCEMENTS]
+
+  - Add the possibility to define functions in Visual Basic and in JavaScript
+
 0.01 - 2016-01-14T20:37:12+01:00
 
   [ENHANCEMENTS]
