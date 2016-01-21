@@ -229,7 +229,8 @@ sub _run {
             $ENV{'PAR_NUM'}  = $PNum;
             $ENV{'PAR_BOOL'} = $PBool;
 
-            $proxy_prog->_run('wscript', 'a', 'pl'); # a = asynchronous
+            # $level = 'tn' --> call recursively $level = 'pl'...
+            $proxy_prog->_run($scr, $mode, 'pl');
         }
     }
     else {
