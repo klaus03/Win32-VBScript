@@ -19,15 +19,14 @@ our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'ini'} } );
 
 my $VBRepo = $ENV{'TEMP'}.'\\Repo01';
 
-my $proxy_invoke = compile_func_vbs([ <<'EOP' ])->func('Invoke_Prog');
-Function Invoke_Prog(ByVal ECmd, ByVal ENum, ByVal EBool)
-    EBool = UCase(Mid(EBool, 1, 1))
-    If ENum  = "1" Then ZNum  = 1    Else ZNum  = 0
-    If EBool = "T" Then ZBool = True Else ZBool = False
+my $proxy_invoke = compile_func_vbs([ <<'EOP' ])->func('IProg');
+Function IProg(ByVal MT, ByVal MNum, ByVal MBool)
+    MBool = UCase(Mid(MBool, 1, 1))
+    Dim ZNum  : If MNum  = "1" Then ZNum  = 1    Else ZNum  = 0
+    Dim ZBool : If MBool = "T" Then ZBool = True Else ZBool = False
 
-    RetCode = CreateObject("WScript.Shell").Run(ECmd, ENum, EBool)
-
-    Invoke_Prog = RetCode
+    Dim OS : Set OS = CreateObject("WScript.Shell")
+    IProg = OS.Run(MT, ZNum, ZBool)
 End Function
 EOP
 
@@ -104,9 +103,15 @@ sub new {
     write_file($file_full, $file_content);
 
     if ($type eq 'func') {
-        my $obj = Win32::OLE->GetObject('script:'.$file_full) or croak "E050: ",
-          "Couldn't Win32::OLE->GetObject('script:$file_full')",
-          " -> ".Win32::GetLastError;
+        my $obj = Win32::OLE->GetObject('script:'.$file_full);
+
+        unless ($obj) {
+            my $file_text = eval{ scalar(read_file($file_full)) } || '???';
+
+            croak "E050: ",
+              "Couldn't Win32::OLE->GetObject('script:$file_full')",
+              " -> ".Win32::GetLastError."\n\n ==>\n".$file_text."\n";
+        }
 
         for my $method (keys %dat_func) {
             $dat_func{$method} = sub { $obj->$method(@_); };
