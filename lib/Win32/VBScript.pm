@@ -19,6 +19,18 @@ our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'ini'} } );
 
 my $VBRepo = $ENV{'TEMP'}.'\\Repo01';
 
+my $proxy_invoke = compile_func_vbs([ <<'EOP' ])->func('Invoke_Prog');
+Function Invoke_Prog(ByVal ECmd, ByVal ENum, ByVal EBool)
+    EBool = UCase(Mid(EBool, 1, 1))
+    If ENum  = "1" Then ZNum  = 1    Else ZNum  = 0
+    If EBool = "T" Then ZBool = True Else ZBool = False
+
+    RetCode = CreateObject("WScript.Shell").Run(ECmd, ENum, EBool)
+
+    Invoke_Prog = RetCode
+End Function
+EOP
+
 sub new {
     my $pkg = shift;
 
@@ -131,10 +143,18 @@ sub compile_func_js {
 
 sub _run {
     my $self = shift;
-    my ($scr, $mode) = @_;
+    my ($scr, $mode, $level) = @_;
 
     unless ($scr eq 'cscript' or $scr eq 'wscript') {
         croak "E060: Invalid script ('$scr'), expected ('cscript' or 'wscript')";
+    }
+
+    unless ($mode eq 'a' or $mode eq 's') {
+        croak "E061: Invalid mode ('$mode'), expected ('a' or 's')";
+    }
+
+    unless ($level eq 'pl' or $level eq 'ms') {
+        croak "E062: Invalid level ('$level'), expected ('pl' or 'ms')";
     }
 
     my $name = $self->{'name'};
@@ -158,14 +178,32 @@ sub _run {
 
     my @param = ($scr, '//Nologo', '//E:'.$engine, $full);
 
-    if ($mode eq 'a') {
-        system 1, @param; # asynchronous
+    if ($level eq 'pl') {
+        if ($mode eq 'a') {
+            system 1, @param; # asynchronous
+        }
+        elsif ($mode eq 's') {
+            system    @param; # sequentially
+        }
+        else {
+            croak "E082: Panic -- invalid mode ('$mode'), expected ('a' or 's')";
+        }
     }
-    elsif ($mode eq 's') {
-        system    @param; # sequentially
+    elsif ($level eq 'ms') {
+        my $PCmd  = join(' ', map { qq{"$_"} } @param);
+        my $PNum  = $scr eq 'cscript' ? '1' : '0';
+        my $PBool = $mode eq 's' ? 'True' : 'False';
+
+        # RC = CreateObject("WScript.Shell").Run($PCmd 0, False)
+        #   ==> 0 = CMD Prompt will not be shown,
+        #   ==> 1 = CMD Prompt will be shown,
+        #   ==> False = Do not wait for program to finish
+        #   ==> True  = Wait for program to finish
+
+        $proxy_invoke->($PCmd, $PNum, $PBool);
     }
     else {
-      croak "E082: Panic -- invalid mode ('$mode'), expected ('a' or 's')";
+        croak "E084: Panic -- invalid level ('$level'), expected ('pl' or 'ms')";
     }
 }
 
@@ -217,24 +255,29 @@ The Win32::OLE part has been copied from Inline::WSC.
     use strict;
     use warnings;
 
-    use Win32::VBScript qw(:all);
+    use Win32::VBScript qw(:ini);
 
-    # This is the procedural interface:
-    # *********************************
+    # the cscript/wscript/async methods come
+    # in two flavours: pl_... and ms_...
+    # **************************************
 
-    my $p1 = compile_prog_js ([ qq{WScript.StdOut.WriteLine("Bonjour");} ]); cscript($p1);
-    my $p2 = compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Hello"}     ]); cscript($p2);
+    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->pl_cscript;
+    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test2");} ])->ms_cscript;
 
-    # This is the OO interface:
-    # *************************
-
-    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
-    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test2"}   ])->cscript;
+    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test3"}   ])->pl_cscript;
+    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test4"}   ])->ms_cscript;
 
     # And with wscript, of course, you can use MsgBox:
     # ************************************************
 
-    compile_prog_vbs([ qq{MsgBox "Test3"} ])->wscript;
+    compile_prog_vbs([ qq{MsgBox "Test5"} ])->pl_wscript;
+    compile_prog_vbs([ qq{MsgBox "Test6"} ])->ms_wscript;
+
+    # And you can have an asynchronous MsgBox as well:
+    # ************************************************
+
+    compile_prog_vbs([ qq{MsgBox "Test7"} ])->pl_async;
+    compile_prog_vbs([ qq{MsgBox "Test8"} ])->ms_async;
 
     # You can even define functions in Visual Basic...
     # ************************************************
