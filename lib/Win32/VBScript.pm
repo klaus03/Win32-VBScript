@@ -106,11 +106,11 @@ sub new {
         my $obj = Win32::OLE->GetObject('script:'.$file_full);
 
         unless ($obj) {
-            my $file_text = eval{ scalar(read_file($file_full)) } || '???';
-
+            #~ my $file_text = eval{ scalar(read_file($file_full)) } || '???';
             croak "E050: ",
               "Couldn't Win32::OLE->GetObject('script:$file_full')",
-              " -> ".Win32::GetLastError."\n\n ==>\n".$file_text."\n";
+              " -> ".Win32::GetLastError().
+              " -> ".Win32::FormatMessage(Win32::GetLastError());
         }
 
         for my $method (keys %dat_func) {
@@ -212,19 +212,34 @@ sub _run {
     }
 }
 
-sub cscript {
+sub pl_cscript {
     my $self = shift;
-    $self->_run('cscript', 's'); # s = sequentially
+    $self->_run('cscript', 's', 'pl'); # s = sequentially
 }
 
-sub wscript {
+sub pl_wscript {
     my $self = shift;
-    $self->_run('wscript', 's'); # s = sequentially
+    $self->_run('wscript', 's', 'pl'); # s = sequentially
 }
 
-sub async {
+sub pl_async {
     my $self = shift;
-    $self->_run('wscript', 'a'); # a = asynchronous
+    $self->_run('wscript', 'a', 'pl'); # a = asynchronous
+}
+
+sub ms_cscript {
+    my $self = shift;
+    $self->_run('cscript', 's', 'ms'); # s = sequentially
+}
+
+sub ms_wscript {
+    my $self = shift;
+    $self->_run('wscript', 's', 'ms'); # s = sequentially
+}
+
+sub ms_async {
+    my $self = shift;
+    $self->_run('wscript', 'a', 'ms'); # a = asynchronous
 }
 
 sub func {

@@ -31,7 +31,7 @@ use_ok('Win32::VBScript', qw(:ini));
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi JS ms_cscript', 'compile_prog_js(MS) works');
+    is($txt, '', 'compile_prog_js(MS) works, and returns an empty string, despite the original message Hi JS ms_cscript');
 }
 
 {
@@ -40,7 +40,7 @@ use_ok('Win32::VBScript', qw(:ini));
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi VBS ms_cscript', 'compile_prog_vbs(MS) works');
+    is($txt, '', 'compile_prog_vbs(MS) works, and returns an empty string, despite the original message Hi VBS ms_cscript');
 }
 
 {
