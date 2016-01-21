@@ -21,13 +21,29 @@ my $VBRepo = $ENV{'TEMP'}.'\\Repo01';
 
 my $proxy_invoke = compile_func_vbs([ <<'EOP' ])->func('IProg');
 Function IProg(ByVal MT, ByVal MNum, ByVal MBool)
+    Dim OS : Set OS = CreateObject("WScript.Shell")
+
     MBool = UCase(Mid(MBool, 1, 1))
     Dim ZNum  : If MNum  = "1" Then ZNum  = 1    Else ZNum  = 0
     Dim ZBool : If MBool = "T" Then ZBool = True Else ZBool = False
 
-    Dim OS : Set OS = CreateObject("WScript.Shell")
     IProg = OS.Run(MT, ZNum, ZBool)
 End Function
+EOP
+
+my $proxy_prog = compile_prog_vbs([ <<'EOP' ]);
+    Dim OS : Set OS = CreateObject("WScript.Shell")
+    Dim EP : Set EP = OS.Environment("Process")
+
+    Dim MT    : MT    = EP("PAR_CMD")
+    Dim MNum  : MNum  = EP("PAR_NUM")
+    Dim MBool : MBool = EP("PAR_BOOL")
+
+    MBool = UCase(Mid(MBool, 1, 1))
+    Dim ZNum  : If MNum  = "1" Then ZNum  = 1    Else ZNum  = 0
+    Dim ZBool : If MBool = "T" Then ZBool = True Else ZBool = False
+
+    OS.Run MT, ZNum, ZBool
 EOP
 
 sub new {
@@ -158,8 +174,8 @@ sub _run {
         croak "E061: Invalid mode ('$mode'), expected ('a' or 's')";
     }
 
-    unless ($level eq 'pl' or $level eq 'ms') {
-        croak "E062: Invalid level ('$level'), expected ('pl' or 'ms')";
+    unless ($level eq 'pl' or $level eq 'ms' or $level eq 'tn') {
+        croak "E062: Invalid level ('$level'), expected ('pl', 'ms' or 'tn')";
     }
 
     my $name = $self->{'name'};
@@ -194,7 +210,7 @@ sub _run {
             croak "E082: Panic -- invalid mode ('$mode'), expected ('a' or 's')";
         }
     }
-    elsif ($level eq 'ms') {
+    elsif ($level eq 'ms' or $level eq 'tn') {
         my $PCmd  = join(' ', map { qq{"$_"} } @param);
         my $PNum  = $scr eq 'cscript' ? '1' : '0';
         my $PBool = $mode eq 's' ? 'True' : 'False';
@@ -205,41 +221,50 @@ sub _run {
         #   ==> False = Do not wait for program to finish
         #   ==> True  = Wait for program to finish
 
-        $proxy_invoke->($PCmd, $PNum, $PBool);
+        if ($level eq 'ms') {
+            $proxy_invoke->($PCmd, $PNum, $PBool);
+        }
+        else {
+            $ENV{'PAR_CMD'}  = $PCmd;
+            $ENV{'PAR_NUM'}  = $PNum;
+            $ENV{'PAR_BOOL'} = $PBool;
+
+            $proxy_prog->_run('wscript', 'a', 'pl'); # a = asynchronous
+        }
     }
     else {
         croak "E084: Panic -- invalid level ('$level'), expected ('pl' or 'ms')";
     }
 }
 
-sub pl_cscript {
+sub cscript {
     my $self = shift;
     $self->_run('cscript', 's', 'pl'); # s = sequentially
 }
 
-sub pl_wscript {
+sub wscript {
     my $self = shift;
     $self->_run('wscript', 's', 'pl'); # s = sequentially
 }
 
-sub pl_async {
+sub ontop {
+    my $self = shift;
+    $self->_run('wscript', 's', 'tn'); # s = sequentially
+}
+
+sub async_cscript {
+    my $self = shift;
+    $self->_run('cscript', 'a', 'ms'); # a = asynchronous
+}
+
+sub async_wscript {
     my $self = shift;
     $self->_run('wscript', 'a', 'pl'); # a = asynchronous
 }
 
-sub ms_cscript {
+sub async_ontop {
     my $self = shift;
-    $self->_run('cscript', 's', 'ms'); # s = sequentially
-}
-
-sub ms_wscript {
-    my $self = shift;
-    $self->_run('wscript', 's', 'ms'); # s = sequentially
-}
-
-sub ms_async {
-    my $self = shift;
-    $self->_run('wscript', 'a', 'ms'); # a = asynchronous
+    $self->_run('wscript', 'a', 'tn'); # a = asynchronous
 }
 
 sub func {
@@ -277,27 +302,24 @@ The Win32::OLE part has been copied from Inline::WSC.
 
     use Win32::VBScript qw(:ini);
 
-    # the cscript/wscript/async methods come
-    # in two flavours: pl_... and ms_...
+    # there is the plain old cscript method:
     # **************************************
 
-    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->pl_cscript;
-    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test2");} ])->ms_cscript;
+    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
 
-    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test3"}   ])->pl_cscript;
-    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test4"}   ])->ms_cscript;
+    # And, of course, you can use MsgBox and wait for a response:
+    # ***********************************************************
 
-    # And with wscript, of course, you can use MsgBox:
-    # ************************************************
+    compile_prog_vbs([ qq{MsgBox "Test2"} ])->cscript;
+    compile_prog_vbs([ qq{MsgBox "Test3"} ])->wscript;
+    compile_prog_vbs([ qq{MsgBox "Test3"} ])->ontop;
 
-    compile_prog_vbs([ qq{MsgBox "Test5"} ])->pl_wscript;
-    compile_prog_vbs([ qq{MsgBox "Test6"} ])->ms_wscript;
+    # Or you can use MsgBox asynchronously (do not wait for a response):
+    # ******************************************************************
 
-    # And you can have an asynchronous MsgBox as well:
-    # ************************************************
-
-    compile_prog_vbs([ qq{MsgBox "Test7"} ])->pl_async;
-    compile_prog_vbs([ qq{MsgBox "Test8"} ])->ms_async;
+    compile_prog_vbs([ qq{MsgBox "Test4"} ])->async_cscript;
+    compile_prog_vbs([ qq{MsgBox "Test5"} ])->async_wscript;
+    compile_prog_vbs([ qq{MsgBox "Test6"} ])->async_ontop;
 
     # You can even define functions in Visual Basic...
     # ************************************************

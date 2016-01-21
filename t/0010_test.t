@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 7;
 
 use Capture::Tiny qw(capture_merged);
 
@@ -9,38 +9,20 @@ use_ok('Win32::VBScript', qw(:ini));
 
 {
     my $txt = capture_merged {
-      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS pl_cscript");} ])->pl_cscript;
+      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS cscript");} ])->cscript;
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi JS pl_cscript', 'compile_prog_js(PL) works');
+    is($txt, 'Hi JS cscript', 'compile_prog_js(PL) works');
 }
 
 {
     my $txt = capture_merged {
-      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS pl_cscript"} ])->pl_cscript;
+      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS cscript"} ])->cscript;
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi VBS pl_cscript', 'compile_prog_vbs(PL) works');
-}
-
-{
-    my $txt = capture_merged {
-      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS ms_cscript");} ])->ms_cscript;
-    };
-
-    $txt =~ s{\n}''xmsg;
-    is($txt, '', 'compile_prog_js(MS) works, and returns an empty string, despite the original message Hi JS ms_cscript');
-}
-
-{
-    my $txt = capture_merged {
-      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS ms_cscript"} ])->ms_cscript;
-    };
-
-    $txt =~ s{\n}''xmsg;
-    is($txt, '', 'compile_prog_vbs(MS) works, and returns an empty string, despite the original message Hi VBS ms_cscript');
+    is($txt, 'Hi VBS cscript', 'compile_prog_vbs(PL) works');
 }
 
 {

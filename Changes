@@ -1,5 +1,44 @@
 Revision history for Win32::VBScript
 
+0.06 - 2016-01-21T17:57:30+01:00
+
+  [ENHANCEMENTS]
+
+  - going back to old functions (cscript, wscript) and adding (ontop)
+    also adding the async_... variety (async_cscript, async_wscript, async_ontop)
+
+sub cscript {
+    my $self = shift;
+    $self->_run('cscript', 's', 'pl'); # s = sequentially
+}
+
+sub wscript {
+    my $self = shift;
+    $self->_run('wscript', 's', 'pl'); # s = sequentially
+}
+
+sub ontop {
+    my $self = shift;
+    $self->_run('wscript', 's', 'tn'); # s = sequentially
+}
+
+sub async_cscript {
+    my $self = shift;
+    $self->_run('cscript', 'a', 'ms'); # a = asynchronous
+}
+
+sub async_wscript {
+    my $self = shift;
+    $self->_run('wscript', 'a', 'pl'); # a = asynchronous
+}
+
+sub async_ontop {
+    my $self = shift;
+    $self->_run('wscript', 'a', 'tn'); # a = asynchronous
+}
+
+
+
 0.05 - 2016-01-21T13:34:28+01:00
 
   [ENHANCEMENTS]
