@@ -1,28 +1,46 @@
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 9;
 
 use Capture::Tiny qw(capture_merged);
 
-use_ok('Win32::VBScript', ':all');
+use_ok('Win32::VBScript', qw(:ini));
 
 {
     my $txt = capture_merged {
-      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS");} ])->cscript;
+      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS pl_cscript");} ])->pl_cscript;
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi JS', 'compile_prog_js() works');
+    is($txt, 'Hi JS pl_cscript', 'compile_prog_js(PL) works');
 }
 
 {
     my $txt = capture_merged {
-      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS"} ])->cscript;
+      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS pl_cscript"} ])->pl_cscript;
     };
 
     $txt =~ s{\n}''xmsg;
-    is($txt, 'Hi VBS', 'compile_prog_vbs() works');
+    is($txt, 'Hi VBS pl_cscript', 'compile_prog_vbs(PL) works');
+}
+
+{
+    my $txt = capture_merged {
+      compile_prog_js([ qq{WScript.StdOut.WriteLine("Hi JS ms_cscript");} ])->ms_cscript;
+    };
+
+    $txt =~ s{\n}''xmsg;
+    is($txt, 'Hi JS ms_cscript', 'compile_prog_js(MS) works');
+}
+
+{
+    my $txt = capture_merged {
+      compile_prog_vbs ([ qq{WScript.StdOut.WriteLine "Hi VBS ms_cscript"} ])->ms_cscript;
+    };
+
+    $txt =~ s{\n}''xmsg;
+    is($txt, 'Hi VBS ms_cscript', 'compile_prog_vbs(MS) works');
 }
 
 {

@@ -1,5 +1,16 @@
 Revision history for Win32::VBScript
 
+0.05 - 2016-01-21T13:34:28+01:00
+
+  [ENHANCEMENTS]
+
+  - split up old functions (cscript, wscript, async)
+    into (pl_cscript, pl_wscript, pl_async)
+    and  (ms_cscript, ms_wscript, ms_async)
+
+  - remove use Win32::VBScript qw(:all); and
+    replace by Win32::VBScript qw(:ini);
+
 0.04 - 2016-01-16T21:43:59+01:00
 
   [BUG-FIX]
