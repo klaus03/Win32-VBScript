@@ -279,7 +279,7 @@ sub flist {
     my $self  = shift;
     my $sf = $self->{'func'};
 
-    sort grep { $sf->{$_} } keys %$sf;
+    sort { lc($a) cmp lc($b) } grep { $sf->{$_} } keys %$sf;
 }
 
 1;
@@ -303,27 +303,12 @@ The Win32::OLE part has been copied from Inline::WSC.
 
     use Win32::VBScript qw(:ini);
 
-    # there is the plain old cscript method:
-    # **************************************
+    compile_prog_vbs([ qq{MsgBox "Please press the OK Button..."}                 ])->ontop;
+    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test1" : WScript.Sleep(2000)} ])->cscript;
+    compile_prog_vbs([ qq{WScript.StdOut.WriteLine "Test2" : WScript.Sleep(2000)} ])->async_cscript;
 
-    compile_prog_js ([ qq{WScript.StdOut.WriteLine("Test1");} ])->cscript;
-
-    # And, of course, you can use MsgBox and wait for a response:
-    # ***********************************************************
-
-    compile_prog_vbs([ qq{MsgBox "Test2"} ])->cscript;
-    compile_prog_vbs([ qq{MsgBox "Test3"} ])->wscript;
-    compile_prog_vbs([ qq{MsgBox "Test3"} ])->ontop;
-
-    # Or you can use MsgBox asynchronously (do not wait for a response):
-    # ******************************************************************
-
-    compile_prog_vbs([ qq{MsgBox "Test4"} ])->async_cscript;
-    compile_prog_vbs([ qq{MsgBox "Test5"} ])->async_wscript;
-    compile_prog_vbs([ qq{MsgBox "Test6"} ])->async_ontop;
-
-    # You can even define functions in Visual Basic...
-    # ************************************************
+    # You can define functions in Visual Basic...
+    # *******************************************
 
     my $t1 = compile_func_vbs([ <<'EOF' ]);
       ' Say hello:
